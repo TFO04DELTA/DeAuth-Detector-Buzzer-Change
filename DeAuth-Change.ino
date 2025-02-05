@@ -15,7 +15,6 @@ extern "C" {
 #define LED 4              /* LED pin */
 #define LED_NUM 1          /* Number of LEDs */
 #define BUZZER 5           /* Buzzer pin */
-#define SPEED 1.5          /* Song speed, the bigger the number the slower the song */
 #define SERIAL_BAUD 115200 /* Baudrate for serial communication */
 #define CH_TIME 140        /* Scan time (in ms) per channel */
 #define PKT_RATE 5         /* Min. packets before it gets recognized as an attack */
@@ -26,146 +25,23 @@ const short channels[] { 1,2,3,4,5,6,7,8,9,10,11,12,13/*,14*/ };
 
 // ===== Runtime variables ===== //
 Adafruit_NeoPixel pixels { LED_NUM, LED, NEO_GRB + NEO_KHZ800 }; // Neopixel LEDs
-bool song_playing { false };      // If a song is currently playing
-int note_index { 0 };             // Index of note that is currently playing
-int note_time { 0 };              // The amount of time (ms) a note is played
+bool song_playing { false };      // If a siren is currently playing
+int note_index { 0 };             // Index for siren alternation
+int note_time { 500 };            // Duration for each siren tone switch
 int ch_index { 0 };               // Current index of channel array
 int packet_rate { 0 };            // Deauth packet counter (resets with each update)
 int attack_counter { 0 };         // Attack counter
 unsigned long update_time { 0 };  // Last update time
 unsigned long ch_time { 0 };      // Last channel hop time
-unsigned long song_time { 0 };    // Last song update
-
-// ===== Notes ===== //
-// Borrowed with <3 from here: https://github.com/xitangg/-Pirates-of-the-Caribbean-Theme-Song
-#define NOTE_C4  262
-#define NOTE_D4  294
-#define NOTE_E4  330
-#define NOTE_F4  349
-#define NOTE_G4  392
-#define NOTE_A4  440
-#define NOTE_B4  494
-#define NOTE_C5  523
-#define NOTE_D5  587
-#define NOTE_E5  659
-#define NOTE_F5  698
-#define NOTE_G5  784
-#define NOTE_A5  880
-#define NOTE_B5  988
-
-int notes[] {
-   NOTE_E4, NOTE_G4, NOTE_A4, NOTE_A4, 0,
-   NOTE_A4, NOTE_B4, NOTE_C5, NOTE_C5, 0,
-   NOTE_C5, NOTE_D5, NOTE_B4, NOTE_B4, 0,
-   NOTE_A4, NOTE_G4, NOTE_A4, 0,
-
-   NOTE_E4, NOTE_G4, NOTE_A4, NOTE_A4, 0,
-   NOTE_A4, NOTE_B4, NOTE_C5, NOTE_C5, 0,
-   NOTE_C5, NOTE_D5, NOTE_B4, NOTE_B4, 0,
-   NOTE_A4, NOTE_G4, NOTE_A4, 0,
-
-   NOTE_E4, NOTE_G4, NOTE_A4, NOTE_A4, 0,
-   NOTE_A4, NOTE_C5, NOTE_D5, NOTE_D5, 0,
-   NOTE_D5, NOTE_E5, NOTE_F5, NOTE_F5, 0,
-   NOTE_E5, NOTE_D5, NOTE_E5, NOTE_A4, 0,
-
-   NOTE_A4, NOTE_B4, NOTE_C5, NOTE_C5, 0,
-   NOTE_D5, NOTE_E5, NOTE_A4, 0,
-   NOTE_A4, NOTE_C5, NOTE_B4, NOTE_B4, 0,
-   NOTE_C5, NOTE_A4, NOTE_B4, 0,
-
-   NOTE_A4, NOTE_A4,
-   NOTE_A4, NOTE_B4, NOTE_C5, NOTE_C5, 0,
-   NOTE_C5, NOTE_D5, NOTE_B4, NOTE_B4, 0,
-   NOTE_A4, NOTE_G4, NOTE_A4, 0,
-
-   NOTE_E4, NOTE_G4, NOTE_A4, NOTE_A4, 0,
-   NOTE_A4, NOTE_B4, NOTE_C5, NOTE_C5, 0,
-   NOTE_C5, NOTE_D5, NOTE_B4, NOTE_B4, 0,
-   NOTE_A4, NOTE_G4, NOTE_A4, 0,
-
-   NOTE_E4, NOTE_G4, NOTE_A4, NOTE_A4, 0,
-   NOTE_A4, NOTE_C5, NOTE_D5, NOTE_D5, 0,
-   NOTE_D5, NOTE_E5, NOTE_F5, NOTE_F5, 0,
-   NOTE_E5, NOTE_D5, NOTE_E5, NOTE_A4, 0,
-
-   NOTE_A4, NOTE_B4, NOTE_C5, NOTE_C5, 0,
-   NOTE_D5, NOTE_E5, NOTE_A4, 0,
-   NOTE_A4, NOTE_C5, NOTE_B4, NOTE_B4, 0,
-   NOTE_C5, NOTE_A4, NOTE_B4, 0,
-
-   NOTE_E5, 0, 0, NOTE_F5, 0, 0,
-   NOTE_E5, NOTE_E5, 0, NOTE_G5, 0, NOTE_E5, NOTE_D5, 0, 0,
-   NOTE_D5, 0, 0, NOTE_C5, 0, 0,
-   NOTE_B4, NOTE_C5, 0, NOTE_B4, 0, NOTE_A4,
-
-   NOTE_E5, 0, 0, NOTE_F5, 0, 0,
-   NOTE_E5, NOTE_E5, 0, NOTE_G5, 0, NOTE_E5, NOTE_D5, 0, 0,
-   NOTE_D5, 0, 0, NOTE_C5, 0, 0,
-   NOTE_B4, NOTE_C5, 0, NOTE_B4, 0, NOTE_A4
-};
-
-int duration[] {
-  125, 125, 250, 125, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 375, 125,
-
-  125, 125, 250, 125, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 375, 125,
-
-  125, 125, 250, 125, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 125, 250, 125,
-
-  125, 125, 250, 125, 125,
-  250, 125, 250, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 375, 375,
-
-  250, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 375, 125,
-
-  125, 125, 250, 125, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 375, 125,
-
-  125, 125, 250, 125, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 125, 250, 125,
-
-  125, 125, 250, 125, 125,
-  250, 125, 250, 125,
-  125, 125, 250, 125, 125,
-  125, 125, 375, 375,
-
-  250, 125, 375, 250, 125, 375,
-  125, 125, 125, 125, 125, 125, 125, 125, 375,
-  250, 125, 375, 250, 125, 375,
-  125, 125, 125, 125, 125, 500,
-
-  250, 125, 375, 250, 125, 375,
-  125, 125, 125, 125, 125, 125, 125, 125, 375,
-  250, 125, 375, 250, 125, 375,
-  125, 125, 125, 125, 125, 500
-};
+unsigned long song_time { 0 };    // Last siren update
 
 // ===== Sniffer function ===== //
 void sniffer(uint8_t *buf, uint16_t len) {
   if (!buf || len < 28) return; // Drop packets without MAC header
 
   byte pkt_type = buf[12]; // second half of frame control field
-  //byte* addr_a = &buf[16]; // first MAC address
-  //byte* addr_b = &buf[22]; // second MAC address
 
-  // If captured packet is a deauthentication or dissassociaten frame
+  // If captured packet is a deauthentication or disassociation frame
   if (pkt_type == 0xA0 || pkt_type == 0xC0) {
     ++packet_rate;
   }
@@ -174,11 +50,10 @@ void sniffer(uint8_t *buf, uint16_t len) {
 // ===== Attack detection functions ===== //
 void attack_started() {
   song_playing = true;
-  note_index = 0;
-  note_time = duration[note_index] * SPEED;
+  note_time = 500; // Set duration for each siren tone switch
 
-  for(int i=0; i<LED_NUM; ++i)
-    pixels.setPixelColor(i, pixels.Color(120,0,0));
+  for(int i = 0; i < LED_NUM; ++i)
+    pixels.setPixelColor(i, pixels.Color(120, 0, 0)); // Red LEDs
   pixels.show();
 
   Serial.println("ATTACK DETECTED");
@@ -186,10 +61,10 @@ void attack_started() {
 
 void attack_stopped() {
   song_playing = false;
-  noTone(BUZZER); // Stop playing
+  noTone(BUZZER); // Stop playing sound
 
-  for(int i=0; i<LED_NUM; ++i)
-    pixels.setPixelColor(i, pixels.Color(0,100,0));
+  for(int i = 0; i < LED_NUM; ++i)
+    pixels.setPixelColor(i, pixels.Color(0, 100, 0)); // Green LEDs
   pixels.show();
 
   Serial.println("ATTACK STOPPED");
@@ -201,8 +76,8 @@ void setup() {
 
   // Init LEDs
   pixels.begin();
-  for(int i=0; i<LED_NUM; ++i)
-    pixels.setPixelColor(i, pixels.Color(0,100,0));
+  for(int i = 0; i < LED_NUM; ++i)
+    pixels.setPixelColor(i, pixels.Color(0, 100, 0)); // Default to green
   pixels.show();
 
   pinMode(BUZZER, OUTPUT); // Init buzzer pin
@@ -221,14 +96,14 @@ void loop() {
   unsigned long current_time = millis(); // Get current time (in ms)
 
   // Update each second (or scan-time-per-channel * channel-range)
-  if (current_time - update_time >= (sizeof(channels)*CH_TIME)) {
+  if (current_time - update_time >= (sizeof(channels) * CH_TIME)) {
     update_time = current_time; // Update time variable
 
     // When detected deauth packets exceed the minimum allowed number
     if (packet_rate >= PKT_RATE) {
       ++attack_counter; // Increment attack counter
     } else {
-      if(attack_counter >= PKT_TIME) attack_stopped();
+      if (attack_counter >= PKT_TIME) attack_stopped();
       attack_counter = 0; // Reset attack counter
     }
 
@@ -248,22 +123,23 @@ void loop() {
     ch_time = current_time; // Update time variable
 
     // Get next channel
-    ch_index = (ch_index+1) % (sizeof(channels)/sizeof(channels[0]));
+    ch_index = (ch_index + 1) % (sizeof(channels) / sizeof(channels[0]));
     short ch = channels[ch_index];
 
-    // Set channel
-    //Serial.print("Set channel to ");
-    //Serial.println(ch);
-    wifi_set_channel(ch);
+    wifi_set_channel(ch); // Set new channel
   }
 
-  if(song_playing && current_time - song_time >= note_time) {
+  // Police siren effect
+  if (song_playing && current_time - song_time >= note_time) {
     song_time = current_time;
+    
+    // Alternate between two frequencies (Police Siren Effect)
+    if (note_index % 2 == 0) {
+        tone(BUZZER, 440);  // Low siren tone
+    } else {
+        tone(BUZZER, 880);  // High siren tone
+    }
 
-    note_index = (note_index+1) % (sizeof(notes)/sizeof(notes[0]));
-    note_time = duration[note_index] * SPEED;
-
-    tone(BUZZER, notes[note_index], note_time);
+    note_index++; // Toggle siren tone
   }
-
 }
